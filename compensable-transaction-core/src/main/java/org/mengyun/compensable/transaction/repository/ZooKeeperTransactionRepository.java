@@ -1,10 +1,11 @@
 package org.mengyun.compensable.transaction.repository;
 
+import org.apache.zookeeper.*;
+import org.apache.zookeeper.data.Stat;
+import org.mengyun.compensable.transaction.Transaction;
 import org.mengyun.compensable.transaction.repository.helper.TransactionSerializer;
 import org.mengyun.compensable.transaction.serializer.JdkSerializationSerializer;
 import org.mengyun.compensable.transaction.serializer.ObjectSerializer;
-import org.apache.zookeeper.*;
-import org.apache.zookeeper.data.Stat;
 
 import javax.transaction.xa.Xid;
 import java.util.ArrayList;
@@ -47,7 +48,7 @@ public class ZooKeeperTransactionRepository extends CachableTransactionRepositor
     }
 
     @Override
-    protected int doCreate(org.mengyun.compensable.transaction.Transaction transaction) {
+    protected int doCreate(Transaction transaction) {
 
         try {
             getZk().create(getTxidPath(transaction.getXid()),
@@ -59,7 +60,7 @@ public class ZooKeeperTransactionRepository extends CachableTransactionRepositor
     }
 
     @Override
-    protected int doUpdate(org.mengyun.compensable.transaction.Transaction transaction) {
+    protected int doUpdate(Transaction transaction) {
 
         try {
 
@@ -73,7 +74,7 @@ public class ZooKeeperTransactionRepository extends CachableTransactionRepositor
     }
 
     @Override
-    protected int doDelete(org.mengyun.compensable.transaction.Transaction transaction) {
+    protected int doDelete(Transaction transaction) {
         try {
             getZk().delete(getTxidPath(transaction.getXid()), (int) transaction.getVersion() - 1);
             return 1;
@@ -83,13 +84,13 @@ public class ZooKeeperTransactionRepository extends CachableTransactionRepositor
     }
 
     @Override
-    protected org.mengyun.compensable.transaction.Transaction doFindOne(Xid xid) {
+    protected Transaction doFindOne(Xid xid) {
 
         byte[] content = null;
         try {
             Stat stat = new Stat();
             content = getZk().getData(getTxidPath(xid), false, stat);
-            org.mengyun.compensable.transaction.Transaction transaction = TransactionSerializer.deserialize(serializer, content);
+            Transaction transaction = TransactionSerializer.deserialize(serializer, content);
             return transaction;
         } catch (KeeperException.NoNodeException e) {
 
@@ -100,13 +101,13 @@ public class ZooKeeperTransactionRepository extends CachableTransactionRepositor
     }
 
     @Override
-    protected List<org.mengyun.compensable.transaction.Transaction> doFindAllUnmodifiedSince(Date date) {
+    protected List<Transaction> doFindAllUnmodifiedSince(Date date) {
 
-        List<org.mengyun.compensable.transaction.Transaction> allTransactions = doFindAll();
+        List<Transaction> allTransactions = doFindAll();
 
-        List<org.mengyun.compensable.transaction.Transaction> allUnmodifiedSince = new ArrayList<org.mengyun.compensable.transaction.Transaction>();
+        List<Transaction> allUnmodifiedSince = new ArrayList<Transaction>();
 
-        for (org.mengyun.compensable.transaction.Transaction transaction : allTransactions) {
+        for (Transaction transaction : allTransactions) {
             if (transaction.getLastUpdateTime().compareTo(date) < 0) {
                 allUnmodifiedSince.add(transaction);
             }
@@ -115,9 +116,9 @@ public class ZooKeeperTransactionRepository extends CachableTransactionRepositor
         return allUnmodifiedSince;
     }
 
-    protected List<org.mengyun.compensable.transaction.Transaction> doFindAll() {
+    protected List<Transaction> doFindAll() {
 
-        List<org.mengyun.compensable.transaction.Transaction> transactions = new ArrayList<org.mengyun.compensable.transaction.Transaction>();
+        List<Transaction> transactions = new ArrayList<Transaction>();
 
         List<String> znodePaths = null;
         try {
@@ -132,7 +133,7 @@ public class ZooKeeperTransactionRepository extends CachableTransactionRepositor
             try {
                 Stat stat = new Stat();
                 content = getZk().getData(getTxidPath(znodePath), false, stat);
-                org.mengyun.compensable.transaction.Transaction transaction = TransactionSerializer.deserialize(serializer, content);
+                Transaction transaction = TransactionSerializer.deserialize(serializer, content);
                 transactions.add(transaction);
             } catch (Exception e) {
                 throw new TransactionIOException(e);
@@ -178,8 +179,4 @@ public class ZooKeeperTransactionRepository extends CachableTransactionRepositor
     }
 
 
-    @Override
-    public void deleteAll() {
-        throw new UnsupportedOperationException();
-    }
 }

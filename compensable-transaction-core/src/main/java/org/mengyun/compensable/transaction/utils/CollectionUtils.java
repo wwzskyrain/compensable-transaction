@@ -1,4 +1,4 @@
-package org.mengyun.compensable.transaction.util;
+package org.mengyun.compensable.transaction.utils;
 
 /**
  * Created by changming.xie on 8/21/17.

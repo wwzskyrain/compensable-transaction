@@ -4,17 +4,12 @@
 <head>
     <meta charset="UTF-8">
     <title>TCC-TRANSACTION管理后台</title>
-    <link rel="stylesheet" href="${tcc_domain}/static/css/bootstrap.css"/>
-    <link rel="stylesheet" href="${tcc_domain}/static/css/admin-base.css"/>
-    <link rel="stylesheet" href="${tcc_domain}/static/css/base.css"/>
-    <link rel="stylesheet" href="${tcc_domain}/static/css/style.css"/>
+    <link rel="stylesheet" href="static/css/bootstrap.css"/>
+    <link rel="stylesheet" href="static/css/admin-base.css"/>
+    <link rel="stylesheet" href="static/css/base.css"/>
+    <link rel="stylesheet" href="static/css/style.css"/>
 </head>
 
-<script type="application/javascript">
-    var config={
-        tcc_domain:"${tcc_domain}"
-    }
-</script>
 <body>
 
 [#import "paging.ftl" as p]
@@ -26,7 +21,13 @@
         <div class="form-inline">
             <div class="form-group is-loading">
                 <label>DOMAIN</label>
-                <input type="text" class="form-control" name="domain" value="${domain}"/>
+                <select name="domain">
+                [#list domains as domainValue]
+
+                    <option value="${domainValue}" [#if currentDomain==domainValue ]
+                            selected="true" [/#if]>${domainValue}</option>
+                [/#list]
+                </select>
             </div>
             &emsp;&emsp;
             <div class="form-group">
@@ -34,21 +35,22 @@
             </div>
         </div>
         <br/>
+
         <div class="table-responsive">
             <p>查询结果</p>
             <table class="table table-hover table-striped table-bordered">
                 <thead>
                 <tr>
-                    <th>DOMAIN</th>
-                    <th>GLOBAL_TX_ID</th>
-                    <th>BRANCH_QUALIFIER</th>
-                    <th>STATUS</th>
-                    <th>CONTENT</th>
-                    <th>TRANSACTION_TYPE</th>
-                    <th>RETRIED_COUNT</th>
-                    <th>CREATE_TIME</th>
-                    <th>LAST_UPDATE_TIME</th>
-                    <th>操作</th>
+                    <th>Domain</th>
+                    <th>Global Tx Id</th>
+                    <th>Branch Qualifier</th>
+                    <th>Status</th>
+                    <th>Transaction Type</th>
+                    <th>Retried Count</th>
+                    <th>Content</th>
+                    <th>Create Time</th>
+                    <th>Last Update Time</th>
+                    <th>Operation</th>
                 </tr>
                 </thead>
                 <tbody>
@@ -57,10 +59,13 @@
                     <td>${transactionVo.domain}</td>
                     <td>${transactionVo.globalTxId}</td>
                     <td>${transactionVo.branchQualifier}</td>
-                    <td>${transactionVo.status}</td>
-                    <td>${transactionVo.jsonContent}</td>
-                    <td>${transactionVo.transactionType}</td>
+                    <td>[#if transactionVo.status==1]Trying[#elseif  transactionVo.status==2]
+                        Confirming[#elseif transactionVo.status==3]Cancelling[#else ]Unknown[/#if]</td>
+                    <td>[#if transactionVo.transactionType==1]Root[#else ]Branch[/#if]</td>
                     <td>${transactionVo.retriedCount}</td>
+                    <td>
+                        <div style="width: 600px; height: 120px; overflow: scroll;">${transactionVo.contentView}</div>
+                    </td>
                     <td>${transactionVo.createTime?datetime}</td>
                     <td>${transactionVo.lastUpdateTime?datetime}</td>
                     <td>
@@ -73,7 +78,7 @@
             </table>
         </div>
         <!--:分页-->
-        [#if pages??]
+    [#if pages??]
         <div class="pager-panel">
             <div class="pull-right">
                 <nav>
@@ -83,10 +88,10 @@
                 </nav>
             </div>
         </div>
-        [/#if]
+    [/#if]
     </div>
 </div>
-<script src="${tcc_domain}/static/js/jquery.js"></script>
-<script src="${tcc_domain}/static/js/base.js"></script>
+<script src="static/js/jquery.js"></script>
+<script src="static/js/base.js"></script>
 </body>
 </html>

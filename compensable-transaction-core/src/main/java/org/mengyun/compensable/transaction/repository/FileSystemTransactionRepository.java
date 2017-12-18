@@ -1,6 +1,5 @@
 package org.mengyun.compensable.transaction.repository;
 
-
 import org.mengyun.compensable.transaction.Transaction;
 import org.mengyun.compensable.transaction.repository.helper.TransactionSerializer;
 import org.mengyun.compensable.transaction.serializer.JdkSerializationSerializer;
@@ -194,10 +193,5 @@ public class FileSystemTransactionRepository extends CachableTransactionReposito
         }
 
         return null;
-    }
-
-    @Override
-    public void deleteAll() {
-        throw new UnsupportedOperationException();
     }
 }

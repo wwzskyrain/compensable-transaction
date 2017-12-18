@@ -15,8 +15,6 @@ public class TransactionVo {
 
     private Integer status;
 
-    private String jsonContent;
-
     private Integer transactionType;
 
     private Integer retriedCount;
@@ -24,6 +22,8 @@ public class TransactionVo {
     private Date createTime;
 
     private Date lastUpdateTime;
+
+    private String contentView;
 
     public String getDomain() {
         return domain;
@@ -89,11 +89,11 @@ public class TransactionVo {
         this.lastUpdateTime = lastUpdateTime;
     }
 
-    public String getJsonContent() {
-        return jsonContent;
+    public String getContentView() {
+        return contentView;
     }
 
-    public void setJsonContent(String jsonContent) {
-        this.jsonContent = jsonContent;
+    public void setContentView(String contentView) {
+        this.contentView = contentView;
     }
 }

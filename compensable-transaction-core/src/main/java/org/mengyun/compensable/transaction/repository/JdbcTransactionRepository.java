@@ -1,13 +1,11 @@
 package org.mengyun.compensable.transaction.repository;
 
-
-import com.alibaba.fastjson.JSON;
+import org.apache.commons.lang3.StringUtils;
 import org.mengyun.compensable.transaction.Transaction;
 import org.mengyun.compensable.transaction.TransactionStatus;
 import org.mengyun.compensable.transaction.serializer.JdkSerializationSerializer;
 import org.mengyun.compensable.transaction.serializer.ObjectSerializer;
-import org.mengyun.compensable.transaction.util.CollectionUtils;
-import org.apache.commons.lang3.StringUtils;
+import org.mengyun.compensable.transaction.utils.CollectionUtils;
 
 import javax.sql.DataSource;
 import javax.transaction.xa.Xid;
@@ -68,8 +66,8 @@ public class JdbcTransactionRepository extends CachableTransactionRepository {
 
             StringBuilder builder = new StringBuilder();
             builder.append("INSERT INTO " + getTableName() +
-                    "(GLOBAL_TX_ID,BRANCH_QUALIFIER,TRANSACTION_TYPE,CONTENT,JSON_CONTENT,STATUS,RETRIED_COUNT,CREATE_TIME,LAST_UPDATE_TIME,VERSION");
-            builder.append(StringUtils.isNotEmpty(domain) ? ",DOMAIN ) VALUES (?,?,?,?,?,?,?,?,?,?,?)" : ") VALUES (?,?,?,?,?,?,?,?,?,?)");
+                    "(GLOBAL_TX_ID,BRANCH_QUALIFIER,TRANSACTION_TYPE,CONTENT,STATUS,RETRIED_COUNT,CREATE_TIME,LAST_UPDATE_TIME,VERSION");
+            builder.append(StringUtils.isNotEmpty(domain) ? ",DOMAIN ) VALUES (?,?,?,?,?,?,?,?,?,?)" : ") VALUES (?,?,?,?,?,?,?,?,?)");
 
             stmt = connection.prepareStatement(builder.toString());
 
@@ -77,15 +75,14 @@ public class JdbcTransactionRepository extends CachableTransactionRepository {
             stmt.setBytes(2, transaction.getXid().getBranchQualifier());
             stmt.setInt(3, transaction.getTransactionType().getId());
             stmt.setBytes(4, serializer.serialize(transaction));
-            stmt.setString(5, JSON.toJSONString(transaction));
-            stmt.setInt(6, transaction.getStatus().getId());
-            stmt.setInt(7, transaction.getRetriedCount());
-            stmt.setTimestamp(8, new Timestamp(transaction.getCreateTime().getTime()));
-            stmt.setTimestamp(9, new Timestamp(transaction.getLastUpdateTime().getTime()));
-            stmt.setLong(10, transaction.getVersion());
+            stmt.setInt(5, transaction.getStatus().getId());
+            stmt.setInt(6, transaction.getRetriedCount());
+            stmt.setTimestamp(7, new Timestamp(transaction.getCreateTime().getTime()));
+            stmt.setTimestamp(8, new Timestamp(transaction.getLastUpdateTime().getTime()));
+            stmt.setLong(9, transaction.getVersion());
 
             if (StringUtils.isNotEmpty(domain)) {
-                stmt.setString(11, domain);
+                stmt.setString(10, domain);
             }
 
             return stmt.executeUpdate();
@@ -113,24 +110,23 @@ public class JdbcTransactionRepository extends CachableTransactionRepository {
 
             StringBuilder builder = new StringBuilder();
             builder.append("UPDATE " + getTableName() + " SET " +
-                    "CONTENT = ?,JSON_CONTENT = ?,STATUS = ?,LAST_UPDATE_TIME = ?, RETRIED_COUNT = ?,VERSION = VERSION+1 WHERE GLOBAL_TX_ID = ? AND BRANCH_QUALIFIER = ? AND VERSION = ?");
+                    "CONTENT = ?,STATUS = ?,LAST_UPDATE_TIME = ?, RETRIED_COUNT = ?,VERSION = VERSION+1 WHERE GLOBAL_TX_ID = ? AND BRANCH_QUALIFIER = ? AND VERSION = ?");
 
             builder.append(StringUtils.isNotEmpty(domain) ? " AND DOMAIN = ?" : "");
 
             stmt = connection.prepareStatement(builder.toString());
 
             stmt.setBytes(1, serializer.serialize(transaction));
-            stmt.setString(2, JSON.toJSONString(transaction));
-            stmt.setInt(3, transaction.getStatus().getId());
-            stmt.setTimestamp(4, new Timestamp(transaction.getLastUpdateTime().getTime()));
+            stmt.setInt(2, transaction.getStatus().getId());
+            stmt.setTimestamp(3, new Timestamp(transaction.getLastUpdateTime().getTime()));
 
-            stmt.setInt(5, transaction.getRetriedCount());
-            stmt.setBytes(6, transaction.getXid().getGlobalTransactionId());
-            stmt.setBytes(7, transaction.getXid().getBranchQualifier());
-            stmt.setLong(8, currentVersion);
+            stmt.setInt(4, transaction.getRetriedCount());
+            stmt.setBytes(5, transaction.getXid().getGlobalTransactionId());
+            stmt.setBytes(6, transaction.getXid().getBranchQualifier());
+            stmt.setLong(7, currentVersion);
 
             if (StringUtils.isNotEmpty(domain)) {
-                stmt.setString(9, domain);
+                stmt.setString(8, domain);
             }
 
             int result = stmt.executeUpdate();
@@ -326,34 +322,5 @@ public class JdbcTransactionRepository extends CachableTransactionRepository {
 
     private String getTableName() {
         return StringUtils.isNotEmpty(tbSuffix) ? "TCC_TRANSACTION" + tbSuffix : "TCC_TRANSACTION";
-    }
-
-    @Override
-    public void deleteAll() {
-        Connection connection = null;
-        PreparedStatement stmt = null;
-
-        try {
-            connection = this.getConnection();
-
-            StringBuilder builder = new StringBuilder();
-            builder.append("DELETE FROM " + getTableName());
-
-            builder.append(StringUtils.isNotEmpty(domain) ? " WHERE DOMAIN = ?" : "");
-
-            stmt = connection.prepareStatement(builder.toString());
-
-            if (StringUtils.isNotEmpty(domain)) {
-                stmt.setString(1, domain);
-            }
-
-            stmt.executeUpdate();
-
-        } catch (SQLException e) {
-            throw new TransactionIOException(e);
-        } finally {
-            closeStatement(stmt);
-            this.releaseConnection(connection);
-        }
     }
 }

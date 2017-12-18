@@ -1,37 +1,38 @@
 package org.mengyun.tcctransaction.server.dao;
 
-import org.mengyun.compensable.transaction.TransactionXid;
+import org.apache.commons.lang3.time.DateUtils;
+import org.mengyun.compensable.transaction.SystemException;
+import org.mengyun.compensable.transaction.repository.TransactionIOException;
 import org.mengyun.compensable.transaction.repository.helper.JedisCallback;
 import org.mengyun.compensable.transaction.repository.helper.RedisHelper;
-import org.mengyun.compensable.transaction.serializer.JdkSerializationSerializer;
-import org.mengyun.compensable.transaction.serializer.ObjectSerializer;
-import org.mengyun.compensable.transaction.util.ByteUtils;
+import org.mengyun.compensable.transaction.utils.ByteUtils;
 import org.mengyun.tcctransaction.server.vo.TransactionVo;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.beans.factory.annotation.Value;
-import org.springframework.stereotype.Repository;
 import redis.clients.jedis.Jedis;
 import redis.clients.jedis.JedisPool;
+import redis.clients.jedis.Pipeline;
 
-import javax.xml.bind.DatatypeConverter;
+import java.text.ParseException;
 import java.util.*;
 
 /**
  * Created by changming.xie on 9/7/16.
  */
-@Repository("redisTransactionDao")
 public class RedisTransactionDao implements TransactionDao {
 
-    @Autowired
+    private String KEY_NAME_SPACE = "TCC";
+
     private JedisPool jedisPool;
 
-    private ObjectSerializer serializer = new JdkSerializationSerializer();
+    private String keySuffix;
 
-    @Value("#{redisDomainKeyPrefix}")
-    private Properties domainKeyPrefix;
+    private String domain;
+
+    private String getKeyPrefix() {
+        return KEY_NAME_SPACE + ":" + keySuffix + ":";
+    }
 
     @Override
-    public List<TransactionVo> findTransactions(final String domain, final Integer pageNum, final int pageSize) {
+    public List<TransactionVo> findTransactions(final Integer pageNum, final int pageSize) {
 
 
         return RedisHelper.execute(jedisPool, new JedisCallback<List<TransactionVo>>() {
@@ -41,7 +42,7 @@ public class RedisTransactionDao implements TransactionDao {
                 int start = (pageNum - 1) * pageSize;
                 int end = pageNum * pageSize;
 
-                ArrayList<byte[]> allKeys = new ArrayList<byte[]>(jedis.keys((domainKeyPrefix.getProperty(domain) + "*").getBytes()));
+                ArrayList<byte[]> allKeys = new ArrayList<byte[]>(jedis.keys((getKeyPrefix() + "*").getBytes()));
 
                 if (allKeys.size() < start) {
                     return Collections.emptyList();
@@ -51,70 +52,106 @@ public class RedisTransactionDao implements TransactionDao {
                     end = allKeys.size();
                 }
 
-                List<byte[]> keys = allKeys.subList(start, end);
+                final List<byte[]> keys = allKeys.subList(start, end);
 
-                List<TransactionVo> transactionVos = new ArrayList<TransactionVo>();
+                try {
 
-                for (byte[] key : keys) {
+                    return RedisHelper.execute(jedisPool, new JedisCallback<List<TransactionVo>>() {
+                        @Override
+                        public List<TransactionVo> doInJedis(Jedis jedis) {
 
-                    byte[] content = RedisHelper.getKeyValue(jedis, key);
-                    Map<String, Object> map = (Map<String, Object>) serializer.deserialize(content);
+                            Pipeline pipeline = jedis.pipelined();
 
-                    TransactionVo transactionVo = new TransactionVo();
-                    transactionVo.setDomain(domain);
-                    transactionVo.setGlobalTxId(DatatypeConverter.printHexBinary((byte[]) map.get("GLOBAL_TX_ID")));
-                    transactionVo.setBranchQualifier(DatatypeConverter.printHexBinary((byte[]) map.get("BRANCH_QUALIFIER")));
-                    transactionVo.setStatus((Integer) map.get("STATUS"));
-                    transactionVo.setTransactionType((Integer) map.get("TRANSACTION_TYPE"));
-                    transactionVo.setRetriedCount((Integer) map.get("RETRIED_COUNT"));
-                    transactionVo.setCreateTime((Date) map.get("CREATE_TIME"));
-                    transactionVo.setLastUpdateTime((Date) map.get("LAST_UPDATE_TIME"));
-                    transactionVos.add(transactionVo);
+                            for (final byte[] key : keys) {
+                                pipeline.hgetAll(key);
+                            }
+                            List<Object> result = pipeline.syncAndReturnAll();
+
+                            List<TransactionVo> list = new ArrayList<TransactionVo>();
+                            for (Object data : result) {
+                                try {
+
+                                    Map<byte[], byte[]> map1 = (Map<byte[], byte[]>) data;
+
+                                    Map<String, byte[]> propertyMap = new HashMap<String, byte[]>();
+
+                                    for (Map.Entry<byte[], byte[]> entry : map1.entrySet()) {
+                                        propertyMap.put(new String(entry.getKey()), entry.getValue());
+                                    }
+
+
+                                    TransactionVo transactionVo = new TransactionVo();
+                                    transactionVo.setDomain(domain);
+                                    transactionVo.setGlobalTxId(UUID.nameUUIDFromBytes(propertyMap.get("GLOBAL_TX_ID")).toString());
+                                    transactionVo.setBranchQualifier(UUID.nameUUIDFromBytes(propertyMap.get("BRANCH_QUALIFIER")).toString());
+                                    transactionVo.setStatus(ByteUtils.bytesToInt(propertyMap.get("STATUS")));
+                                    transactionVo.setTransactionType(ByteUtils.bytesToInt(propertyMap.get("TRANSACTION_TYPE")));
+                                    transactionVo.setRetriedCount(ByteUtils.bytesToInt(propertyMap.get("RETRIED_COUNT")));
+                                    transactionVo.setCreateTime(DateUtils.parseDate(new String(propertyMap.get("CREATE_TIME")), "yyyy-MM-dd HH:mm:ss"));
+                                    transactionVo.setLastUpdateTime(DateUtils.parseDate(new String(propertyMap.get("LAST_UPDATE_TIME")), "yyyy-MM-dd HH:mm:ss"));
+                                    transactionVo.setContentView(new String(propertyMap.get("CONTENT_VIEW")));
+                                    list.add(transactionVo);
+
+                                } catch (ParseException e) {
+                                    throw new SystemException(e);
+                                }
+                            }
+
+                            return list;
+                        }
+                    });
+
+                } catch (Exception e) {
+                    throw new TransactionIOException(e);
                 }
-                return transactionVos;
+
             }
         });
     }
 
     @Override
-    public Integer countOfFindTransactions(String domain) {
-        Jedis jedis = null;
-        try {
-            jedis = jedisPool.getResource();
-            return jedis.keys((domainKeyPrefix.getProperty(domain) + "*").getBytes()).size();
-        } catch (Exception e) {
-            throw new RuntimeException(e);
-        } finally {
-            if (jedis != null) {
-                jedis.close();
+    public Integer countOfFindTransactions() {
+
+        return RedisHelper.execute(jedisPool, new JedisCallback<Integer>() {
+            @Override
+            public Integer doInJedis(Jedis jedis) {
+                return jedis.keys((getKeyPrefix() + "*").getBytes()).size();
             }
-        }
+        });
     }
 
     @Override
-    public boolean resetRetryCount(final String domain, final byte[] globalTxId, final byte[] branchQualifier) {
-
-        if (domainKeyPrefix.getProperty(domain) == null) {
-            return false;
-        }
+    public boolean resetRetryCount(final String globalTxId, final String branchQualifier) {
 
         return RedisHelper.execute(jedisPool, new JedisCallback<Boolean>() {
             @Override
             public Boolean doInJedis(Jedis jedis) {
 
-                byte[] key = RedisHelper.getRedisKey(domainKeyPrefix.getProperty(domain), new TransactionXid(globalTxId, branchQualifier));
-                byte[] content = RedisHelper.getKeyValue(jedis, key);
-
-                Map<String, Object> map = (Map<String, Object>) serializer.deserialize(content);
-
-                map.put("RETRIED_COUNT", 0);
-                map.put("LAST_UPDATE_TIME", new Date());
-                map.put("VERSION", ((Long) map.get("VERSION")) + 1);
-
-                Long result = jedis.hsetnx(key, ByteUtils.longToBytes((Long) map.get("VERSION")), serializer.serialize(map));
-
+                byte[] key = RedisHelper.getRedisKey(getKeyPrefix(), globalTxId, branchQualifier);
+                Long result = jedis.hset(key, "RETRIED_COUNT".getBytes(), ByteUtils.intToBytes(0));
                 return result > 0;
             }
         });
+    }
+
+    @Override
+    public String getDomain() {
+        return domain;
+    }
+
+    public void setDomain(String domain) {
+        this.domain = domain;
+    }
+
+    public void setJedisPool(JedisPool jedisPool) {
+        this.jedisPool = jedisPool;
+    }
+
+    public String getKeySuffix() {
+        return keySuffix;
+    }
+
+    public void setKeySuffix(String keySuffix) {
+        this.keySuffix = keySuffix;
     }
 }

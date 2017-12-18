@@ -1,7 +1,7 @@
 package org.mengyun.compensable.transaction;
 
 import org.mengyun.commons.bean.FactoryBuilder;
-import org.mengyun.compensable.transaction.util.StringUtils;
+import org.mengyun.compensable.transaction.utils.StringUtils;
 
 import java.lang.reflect.Method;
 

@@ -1,4 +1,4 @@
-package org.mengyun.compensable.transaction.util;
+package org.mengyun.compensable.transaction.utils;
 
 import java.lang.reflect.Array;
 import java.util.Arrays;
