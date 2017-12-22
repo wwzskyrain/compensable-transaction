@@ -1,9 +1,9 @@
-package org.mengyun.tcctransaction.server.controller;
+package org.mengyun.compensable.transaction.server.controller;
 
 import org.apache.commons.lang3.StringUtils;
-import org.mengyun.tcctransaction.server.dao.DaoRepository;
-import org.mengyun.tcctransaction.server.vo.CommonResponse;
-import org.mengyun.tcctransaction.server.vo.TransactionVo;
+import org.mengyun.compensable.transaction.server.vo.CommonResponse;
+import org.mengyun.compensable.transaction.server.vo.TransactionVo;
+import org.mengyun.compensable.transaction.server.dao.DaoRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Controller;
 import org.springframework.web.bind.annotation.RequestMapping;

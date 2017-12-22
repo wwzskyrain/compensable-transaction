@@ -2,14 +2,14 @@ package org.mengyun.compensable.transaction.recovery;
 
 
 import com.alibaba.fastjson.JSON;
+import org.apache.commons.lang3.exception.ExceptionUtils;
+import org.apache.log4j.Logger;
 import org.mengyun.compensable.transaction.OptimisticLockException;
 import org.mengyun.compensable.transaction.Transaction;
 import org.mengyun.compensable.transaction.TransactionStatus;
 import org.mengyun.compensable.transaction.TransactionType;
 import org.mengyun.compensable.transaction.repository.TransactionRepository;
 import org.mengyun.compensable.transaction.support.TransactionConfigurator;
-import org.apache.commons.lang3.exception.ExceptionUtils;
-import org.apache.log4j.Logger;
 
 import java.util.Calendar;
 import java.util.Date;
@@ -25,8 +25,6 @@ public class TransactionRecovery {
     private TransactionConfigurator transactionConfigurator;
 
     public void startRecover() {
-
-        System.out.println("startRecover");
 
         List<Transaction> transactions = loadErrorTransactions();
 

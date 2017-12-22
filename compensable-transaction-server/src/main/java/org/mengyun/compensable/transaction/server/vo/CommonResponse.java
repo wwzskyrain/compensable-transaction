@@ -1,4 +1,4 @@
-package org.mengyun.tcctransaction.server.vo;
+package org.mengyun.compensable.transaction.server.vo;
 
 import org.springframework.http.HttpStatus;
 
