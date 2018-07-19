@@ -192,7 +192,6 @@ public class RedisTransactionRepository extends CachableTransactionRepository {
                         for (String key : allKeys) {
                             allKeySet.add(key.getBytes());
                         }
-                        logger.info(String.format("find all key by scan command with pattern:%s allKeySet.size()=%d", keyPrefix + "*", allKeySet.size()));
                         return allKeySet;
                     } else {
                         return jedis.keys((keyPrefix + "*").getBytes());
